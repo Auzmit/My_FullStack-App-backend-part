@@ -1,46 +1,80 @@
 import http from 'http';
 
-export default (usersById) => http.createServer((request, response) => {
-  request.on('end', () => {
-    if (request.url === '/') {
+const getParams = (address, host) => {
+  const url = new URL(address, `http://${host}`);
+  return Object.fromEntries(url.searchParams);
+};
+
+const router = {
+  GET: {
+    '/users/(\\w+).json': (req, res, matches, usersById) => {
+      // BEGIN (write your solution here)
+
+      const id = matches[1];
+      res.setHeader('Content-Type', 'application/json');
+      const user = usersById[id];
+      if (!user) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      res.end(JSON.stringify({ data: user }));
+
+      // END
+    },
+    '/': (req, res, matches, usersById) => {
       const messages = [
         'Welcome to The Phonebook',
         `Records count: ${Object.keys(usersById).length}`,
       ];
-      response.end(messages.join('\n'));
-    } else if (request.url.startsWith('/search')) {
-      // BEGIN (write your solution here)
+      res.end(messages.join('\n'));
+    },
 
-      // Моё решение
-      const q = request.url.split('=').at(-1).toLowerCase();
-      const result = [];
-      Object.values(usersById).forEach((user) => {
-        if (user.name.toLowerCase().includes(q)) {
-          result.push(`${user.name}, ${user.phone}`);
-        }
-      });
-      response.end(result.join('\n'));
+    '/search.json': (req, res, matches, usersById) => {
+      res.setHeader('Content-Type', 'application/json');
 
-      // Решение учителя
-      // const url = new URL(request.url, `http://${request.headers.host}`);
-      // const q = url.searchParams.get('q');
+      const { q = '' } = getParams(req.url, req.headers.host);
+      const normalizedSearch = q.trim().toLowerCase();
+      const ids = Object.keys(usersById);
 
-      // if (!q) {
-      //   response.end();
-      //   return;
-      // }
+      const usersSubset = ids
+        .filter((id) => usersById[id].name.toLowerCase().includes(normalizedSearch))
+        .map((id) => usersById[id]);
+      res.end(JSON.stringify({ data: usersSubset }));
+    },
 
-      // const normalizedSearch = q.trim().toLowerCase();
+    '/users.json': (req, res, matches, usersById) => {
+      res.setHeader('Content-Type', 'application/json');
 
-      // const result = Object.values(usersById)
-      //   .filter((user) => user.name.toLowerCase().includes(normalizedSearch))
-      //   .map((user) => `${user.name}, ${user.phone}`)
-      //   .join('\n');
-      // response.end(result);
+      const { page = 1, perPage = 10 } = getParams(req.url, req.headers.host);
+      const ids = Object.keys(usersById);
 
-      // END
+      const usersSubset = ids.slice((page * perPage) - perPage, page * perPage)
+        .map((id) => usersById[id]);
+      const totalPages = Math.ceil((ids.length) / perPage);
+      res.end(JSON.stringify({ meta: { page, perPage, totalPages }, data: usersSubset }));
+    },
+  },
+};
+
+export default (users) => http.createServer((request, response) => {
+  const { pathname } = new URL(request.url, `http://${request.headers.host}`);
+  const routes = router[request.method];
+
+  const result = pathname && Object.keys(routes).find((str) => {
+    const regexp = new RegExp(`^${str}$`);
+    const matches = pathname.match(regexp);
+
+    if (!matches) {
+      return false;
     }
+
+    routes[str](request, response, matches, users);
+    return true;
   });
 
-  request.resume();
+  if (!result) {
+    response.writeHead(404);
+    response.end();
+  }
 });

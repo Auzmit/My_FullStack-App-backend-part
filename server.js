@@ -17,6 +17,7 @@ const router = {
         res.writeHead(404);
         res.end();
         return;
+        
       }
       res.end(JSON.stringify({ data: user }));
 

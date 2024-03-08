@@ -41,6 +41,11 @@ const router = {
       const usersSubset = ids
         .filter((id) => usersById[id].name.toLowerCase().includes(normalizedSearch))
         .map((id) => usersById[id]);
+
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5500');
+      // res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      
       res.end(JSON.stringify({ data: usersSubset }));
     },
 

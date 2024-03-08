@@ -28,7 +28,6 @@
 make install
 ```
 
-
 Затем запустить сервер локально:
 ```bash
 make start
